@@ -1,5 +1,6 @@
 package com.gojuno.composer
 
+import com.gojuno.commander.os.log
 import com.gojuno.composer.InstrumentationTest.Status.*
 import rx.Observable
 import java.io.File
@@ -62,7 +63,9 @@ private fun String.parseInstrumentationStatusValue(key: String): String = this
 
 private fun String.throwIfError(output: File) = when {
     contains("INSTRUMENTATION_RESULT: shortMsg=Process crashed") -> {
-        throw Exception("Application process crashed. Check Logcat output for more details.")
+        // Because if we throw exception here, generating test results will be failed.
+        log("Application process crashed. Check Logcat output for more details.")
+        this
     }
 
     contains("INSTRUMENTATION_STATUS: Error=Unable to find instrumentation info for") -> {
