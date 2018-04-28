@@ -88,6 +88,9 @@ fun main(rawArgs: Array<String>) {
 
 private fun runAllTests(args: Args, testPackage: TestPackage.Valid, testRunner: TestRunner.Valid): List<Suite> {
 
+    // TODO: Will remove this if I:
+    //   - Finish evaluation of this method
+    //   - Merge https://github.com/KazuCocoa/commander/tree/add_is_app_installed to commander
     fun isAppInstalled(adbDevice: AdbDevice, packageName: String): Observable<Boolean> {
         val installedPackages = process(
             commandAndArgs = listOf(
