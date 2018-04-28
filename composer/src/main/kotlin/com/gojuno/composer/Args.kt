@@ -106,7 +106,16 @@ data class Args(
                 description = "Either `true` or `false` to enable/disable error on empty test suite. True by default.",
                 order = 11
         )
-        var failIfNoTests: Boolean = true
+        var failIfNoTests: Boolean = true,
+
+        @Parameter(
+                names = arrayOf("--skip-install-app-if-exist"),
+                required = false,
+                arity = 1,
+                description = "skip",
+                order = 12
+                )
+        var skipInstallAppIfExist: Boolean = false
 )
 
 // No way to share array both for runtime and annotation without reflection.

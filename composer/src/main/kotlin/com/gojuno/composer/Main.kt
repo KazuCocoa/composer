@@ -1,9 +1,13 @@
 package com.gojuno.composer
 
+import com.gojuno.commander.android.AdbDevice
+import com.gojuno.commander.android.adb
 import com.gojuno.commander.android.connectedAdbDevices
 import com.gojuno.commander.android.installApk
+import com.gojuno.commander.os.Notification
 import com.gojuno.commander.os.log
 import com.gojuno.commander.os.nanosToHumanReadableTime
+import com.gojuno.commander.os.process
 import com.gojuno.composer.html.writeHtmlReport
 import com.google.gson.Gson
 import rx.Observable
@@ -83,6 +87,36 @@ fun main(rawArgs: Array<String>) {
 }
 
 private fun runAllTests(args: Args, testPackage: TestPackage.Valid, testRunner: TestRunner.Valid): List<Suite> {
+
+    fun isAppInstalled(adbDevice: AdbDevice, packageName: String): Observable<Boolean> {
+        val installedPackages = process(
+            commandAndArgs = listOf(
+                adb,
+                "-s",
+                adbDevice.id,
+                "shell",
+                "pm",
+                "list",
+                "packages",
+                packageName
+            ),
+            unbufferedOutput = true
+        )
+
+        return installedPackages
+            .ofType(Notification.Exit::class.java)
+            .map { it.output.readText() }
+            .map { packageNames ->
+                val installedPackageRegex = "^package:$packageName$".toRegex(RegexOption.MULTILINE)
+                val result = installedPackageRegex.find(packageNames)
+
+                when (result) {
+                    null -> false
+                    else -> true
+                }
+            }
+    }
+
     val gson = Gson()
 
     return connectedAdbDevices()
@@ -111,11 +145,15 @@ private fun runAllTests(args: Args, testPackage: TestPackage.Valid, testRunner: 
                     val installTimeout = Pair(args.installTimeoutSeconds, TimeUnit.SECONDS)
                     val installAppApk = device.installApk(pathToApk = args.appApkPath, timeout = installTimeout)
                     val installTestApk = device.installApk(pathToApk = args.testApkPath, timeout = installTimeout)
+                    val isAppInstalled = isAppInstalled(device, "packagename")
 
-                    Observable
-                            .concat(installAppApk, installTestApk)
-                            // Work with each device in parallel, but install apks sequentially on a device.
-                            .subscribeOn(Schedulers.io())
+                    isAppInstalled.map { it ->
+                        when (it && args.skipInstallAppIfExist) {
+                            true -> installTestApk
+                            false -> Observable.concat(installAppApk, installTestApk)
+                        }
+                    } // Work with each device in parallel, but install apks sequentially on a device.
+                        .subscribeOn(Schedulers.io())
                             .toList()
                             .flatMap {
                                 val instrumentationArguments =
